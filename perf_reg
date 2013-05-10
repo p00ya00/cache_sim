@@ -1,0 +1,37 @@
+L1D:
+
+PERF_COUNT_HW_CACHE_L1D:READ:ACCESS	0x0		LOAD ACCESS
+PERF_COUNT_HW_CACHE_L1D:READ:MISS	0x10000		LOAD MISS
+PERF_COUNT_HW_CACHE_L1D:WRITE:ACCESS	0x100		STORE ACCESS
+PERF_COUNT_HW_CACHE_L1D:WRITE:MISS	0x10100		STORE MISS
+PERF_COUNT_HW_CACHE_L1D:PREFETCH:ACCESS	0x200		PREFETCH access
+PERF_COUNT_HW_CACHE_L1D:PREFETCH:MISS	0x10200		PREFETCH MISS
+L1D:REPLACEMENT		0x530151	Number of cache lines brought into the L1D cache
+L1D:M_EVICT		0x530451	Number of modified lines evicted from L1D due to replacement
+L1D:ALL_M_REPLACEMENT	0x530851	Number of cache lines in M-state evicted of L1D due to snoop HITM or dirty line replacement
+L2_L1D_WB_RQSTS:HIT_M	0x530828	Non rejected writebacks from L1D to L2 cache lines in M(modified) state
+
+//////////////////////////////////
+size_t loadAccess;
+size_t loadHit;
+size_t storeAccess;
+size_t storeHit;
+size_t prefetchAccess;
+size_t prefetchHit;
+size_t loadedCachelines;
+size_t modifiedLinesEvacuated;
+size_t writebacksToL2;
+/////////////////////////////////
+
+L2:
+
+L2_LINES_OUT:DEMAND_CLEAN	0x5301f2	L2 clean line evicted by a demand
+L2_LINES_OUT:DEMAND_DIRTY       0x5302f2	L2 dirty line evicted by a demand
+L2_LINES_OUT:PREFETCH_CLEAN	0x5304f2	L2 clean line evicted by a prefetch
+L2_LINES_OUT:PREFETCH_DIRTY	0x5308f2	L2 dirty line evicted by an MLC Prefetch
+L2_RQSTS:ALL_DEMAND_DATA_RD	0x530324	Demand data read requests to L2 cache
+L2_RQSTS:ALL_DEMAND_RD_HIT	0x530124	Demand data read requests that hit L2
+L2_RQSTS:ALL_PF			0x53c024	Any L2 HW prefetch request to L2 cache
+L2_RQSTS:PF_MISS		0x538024	Requests from the L2 hardware prefetchers that miss L2 cache
+L2_TRANS:L1D_WB			0x5310f0	L1D writebacks that access L2 cache
+

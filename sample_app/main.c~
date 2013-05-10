@@ -1,0 +1,37 @@
+#include <stdio.h>
+#include <math.h>
+
+#define MATRIX_SIZE 8
+
+void GaussianElimination()
+{
+    
+}
+
+int main(void)
+{
+    double matrix[MATRIX_SIZE][MATRIX_SIZE];
+    double b[MATRIX_SIZE], x[MATRIX_SIZE];
+    int i, j;
+    
+    //Fill the matrix and right-hand side
+    for(i = 0; i < MATRIX_SIZE; ++i)
+    {
+        for(j = 0; j < MATRIX_SIZE; ++j)
+                matrix[i][j] = 1.0 / (i + j + 1);
+        b[i] = 1;
+    }
+    
+    //print the matrix
+    for(i=0; i < MATRIX_SIZE; ++i)
+    {
+        printf("|");
+        for(j = 0; j < MATRIX_SIZE; ++j)
+        {
+                printf("%.3f ",matrix[i][j]);
+        }
+        printf("|%s|%.3f|\n", (i == MATRIX_SIZE / 2) ? " X = " : "     ", b[i]);
+    }
+    
+    return 0;
+}

@@ -1,0 +1,49 @@
+tput setaf 1; tput bold; echo running $1 in simulator...; tput sgr0
+
+tput setaf 9
+$PIN_HOME/pin -t obj-intel64/memtrace -- $1
+echo
+
+tput setaf 1; tput bold; echo running $1 with perf...; tput sgr0
+
+tput setaf 9
+#apparently perf works with 4 counters at a time!!
+L1_PERF_REGS="-eL1-dcache-loads:u -eL1-dcache-load-misses:u -eL1-dcache-stores:u -eL1-dcache-store-misses:u"
+taskset -c 1 perf stat $L1_PERF_REGS $1 > /dev/null
+
+# L1_PERF_REGS="-eL1-dcache-prefetches -eL1-dcache-prefetch-misses"
+# taskset -c 2 perf stat $L1_PERF_REGS $1 > /dev/null
+
+# L1_PERF_REGS="-er530151 -er530451 -er530851 -er530828"
+# taskset -c 3 perf stat $L1_PERF_REGS $1 > /dev/null
+
+# tput setaf 1; tput bold
+# echo r530151	"Number of cache lines brought into the L1D cache"
+# echo r530451	"Number of modified lines evicted from L1D due to replacement"
+# echo r530851	"Number of cache lines in M-state evicted of L1D due to snoop HITM or dirty line replacement"
+# echo r530828	"Non rejected writebacks from L1D to L2 cache lines in M(modified) state"
+
+tput sgr0; tput setaf 9
+L1I_PERF_REGS="-eL1-icache-loads  -eL1-icache-load-misses"
+taskset -c 1 perf stat $L1I_PERF_REGS $1 > /dev/null
+
+# L2_PERF_REGS="-er5301f2 -er5302f2 -er5304f2 -er5308f2"
+# taskset -c 2 perf stat $L2_PERF_REGS $1 > /dev/null
+
+# tput setaf 1; tput bold
+# echo r5301f2	L2 clean line evicted by a demand
+# echo r5302f2	L2 dirty line evicted by a demand
+# echo r5304f2	L2 clean line evicted by a prefetch
+# echo r5308f2	L2 dirty line evicted by an MLC Prefetch
+
+# tput sgr0; tput setaf 9
+# L2_PERF_REGS="-er530324 -er530124 -er53c024 -er538024"
+# taskset -c 3 perf stat $L2_PERF_REGS $1 > /dev/null
+
+# tput setaf 1; tput bold
+# echo r530324	Demand data read requests to L2 cache
+# echo r530124	Demand data read requests that hit L2
+# echo r53c024	Any L2 HW prefetch request to L2 cache
+# echo r538024	Requests from the L2 hardware prefetchers that miss L2 cache
+
+tput sgr0; tput setaf 9

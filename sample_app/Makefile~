@@ -1,0 +1,14 @@
+CC = gcc
+CFLAGS = -Wall
+SOURCES = lin_sys_sol.c
+EXECUTABLE = lin_sys_sol
+LIBS = -lm
+
+all:
+	$(CC) $(CFLAGS) $(SOURCES) $(LIBS) -o $(EXECUTABLE)
+	
+clean:
+	rm -rf *.o
+
+very_clean:
+	rm -rf *.o $(EXECUTABLE)
