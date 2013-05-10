@@ -70,9 +70,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 	CacheOperationResult res;
 	PIN_MutexLock(&mutex);
 
-    memTraceDump << dec << tid << "  " << hex << addr << "  " << dec << size << "B  "
-                 << (write ? "W  " : "R  ") << (char *)img_name << "::" << (char *)rtn_name 
-                 << endl;
+//    memTraceDump << dec << tid << "  " << hex << addr << "  " << dec << size << "B  "
+//                << (write ? "W  " : "R  ") << (char *)img_name << "::" << (char *)rtn_name 
+//                 << endl;
 
 	// cout << "send io to l1d\n";
 	if(write)
