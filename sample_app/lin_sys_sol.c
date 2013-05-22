@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define MATRIX_SIZE 16
+#define MATRIX_SIZE 64
 
 void print_linear_sys(const double matrix[][MATRIX_SIZE], const double b[]);
 void print_answer(const double x[]);
