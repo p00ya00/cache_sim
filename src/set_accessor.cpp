@@ -75,14 +75,12 @@ CacheLine *SetAccessor::write(Address adr)
 		SET_EVACUATED(replacedCacheline);
 		DL_DELETE(cls->set, toDelete);
 		delete toDelete;
+		--cls->size;
 	}
-	else
-	{
-		CacheLineList *newEntry = new CacheLineList;
-		newEntry->cacheline = new CacheLine(dtag);
-		DL_APPEND(cls->set, newEntry);
-		++cls->size;
-	}
+	CacheLineList *newEntry = new CacheLineList;
+	newEntry->cacheline = new CacheLine(dtag);
+	DL_APPEND(cls->set, newEntry);
+	++cls->size;
 
 	return replacedCacheline;
 }

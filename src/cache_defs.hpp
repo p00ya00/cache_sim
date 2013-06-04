@@ -8,8 +8,7 @@ using namespace std;
 #include "uthash/utlist.h"
 
 #define INVALID_ENTRY   0x01
-#define EMPTY_CACHELINE 0x02
-#define EVACUATED       0x04
+#define EVACUATED       0x02
 
 #define IS_ENTRY_INVALID(cl) _IS_ENTRY_INVALID((cl))
 #define IS_CACHELINE_EMPTY(cl) _IS_CACHELINE_EMPTY((cl))

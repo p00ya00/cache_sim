@@ -2,7 +2,6 @@
 #define L1ICACHE_HPP_
 
 #include "set_accessor.hpp"
-#include "lru.hpp"
 #include "stride_prefetcher.hpp"
 #include <iostream>
 #include <iomanip>
@@ -16,7 +15,8 @@ public:
 	: config(c), nextLevel(next), l1dCache(l1d), accessor(c)
 	, stridePrefetcher(config.cacheLineSize, 2048, 4), loadAccess(0), loadHit(0)
 	{
-		accessor.setCacheTable(&table);
+		table = new CacheLineSet[c.numberOfSets];
+		accessor.setCacheTable(table);
 	}
 
 	CacheOperationResult load(Address adr)
@@ -38,7 +38,6 @@ public:
 			if(modifiedOrEvacuated)
 				handleWritePolicy(modifiedOrEvacuated);
 		}
-		accessor.updatePolicy(adr);
 
 		return res;
 	}
@@ -90,7 +89,7 @@ private:
 	CacheConfig config;
 	NextLevel *nextLevel;
 	L1D *l1dCache;
-	SetAccessor<LeastRecentlyUsed<SET_ASSOC> > accessor;
+	SetAccessor accessor;
 	//IP-based strided prefetcher
 	StridePrefetcher stridePrefetcher;
 	//performance counters

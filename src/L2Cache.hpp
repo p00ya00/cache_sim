@@ -2,7 +2,6 @@
 #define L2CACHE_HPP_
 
 #include "set_accessor.hpp"
-#include "lru.hpp"
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
@@ -19,7 +18,8 @@ public:
 	, cleanLinesEvacuatedByPrefetcher(0), dirtyLinesEvacuatedByPrefetcher(0)
 	, loadRequest(0), loadRequestHit(0), prefetchRequest(0), prefetchRequestMiss(0)
 	{
-		accessor.setCacheTable(&table);
+		table = new CacheLineSet[c.numberOfSets];
+		accessor.setCacheTable(table);
 	}
 
 	CacheOperationResult load(Address adr, bool prefetch = false)
@@ -53,7 +53,6 @@ public:
 			if(modifiedOrEvacuated)
 				handleWritePolicy(modifiedOrEvacuated);
 		}
-		accessor.updatePolicy(adr);
 		//update should not be called after unsuccessful reads?
 		if(!prefetch)
 		{
@@ -103,7 +102,6 @@ public:
 		}
 		if(modifiedOrEvacuated)
 			handleWritePolicy(modifiedOrEvacuated);
-		accessor.updatePolicy(adr);
 
 		return res;
 	}
@@ -187,7 +185,7 @@ private:
 	CacheTable table;
 	CacheConfig config;
 	NextLevel *nextLevel;
-	SetAccessor<LeastRecentlyUsed<SET_ASSOC> > accessor;
+	SetAccessor accessor;
 	AccessList readRequests;
 	StreamPrefetcher streamPrefetcher;
 	//performance counters

@@ -2,7 +2,6 @@
 #define L1DCACHE_HPP_
 
 #include "set_accessor.hpp"
-#include "lru.hpp"
 #include "stream_prefetcher.hpp"
 #include <iostream>
 #include <iomanip>
@@ -19,7 +18,8 @@ public:
 	, prefetchAccess(0), prefetchHit(0), loadedCachelines(0)
 	, modifiedLinesEvacuated(0), writebacksToL2(0)
 	{
-		accessor.setCacheTable(&table);
+		table = new CacheLineSet[c.numberOfSets];
+		accessor.setCacheTable(table);
 	}
 
 	/*
@@ -49,14 +49,6 @@ public:
 		}
 		if(modifiedOrEvacuated && IS_ENTRY_INVALID(modifiedOrEvacuated) && IS_EVACUATED(modifiedOrEvacuated))
 			++modifiedLinesEvacuated;
-
-		// call prefetcher and update replacement policy only if this load is not from a prefetcher
-		if(!prefetch)
-		{
-			accessor.updatePolicy(adr);
-			// if(!cl)
-			// 	runPrefetcher();
-		}
 
 		return res;
 	}
@@ -89,7 +81,6 @@ public:
 
 		if(modifiedOrEvacuated && IS_ENTRY_INVALID(modifiedOrEvacuated) && IS_EVACUATED(modifiedOrEvacuated))
 			++modifiedLinesEvacuated;
-		accessor.updatePolicy(adr);
 
 		return res;
 	}
@@ -157,7 +148,7 @@ private:
 	CacheTable table;
 	CacheConfig config;
 	NextLevel *nextLevel;
-	SetAccessor<LeastRecentlyUsed<SET_ASSOC> > accessor;
+	SetAccessor accessor;
 	AccessList recentlyLoadedLines;
 	//ascending stream prefetcher
 	StreamPrefetcher streamPrefetcher;
