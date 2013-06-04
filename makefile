@@ -45,7 +45,7 @@ TOOLS = $(TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX))
 
 SRC_DIR = src/
 #OBJS = $(OBJDIR)memtrace.o $(OBJDIR)cache.o
-OBJS = $(OBJDIR)memtrace.o $(OBJDIR)stream_prefetcher.o $(OBJDIR)stride_prefetcher.o
+OBJS = $(OBJDIR)memtrace.o $(OBJDIR)stream_prefetcher.o $(OBJDIR)stride_prefetcher.o $(OBJDIR)set_accessor.o
 
 all: tools
 tools: $(OBJDIR) $(TOOLS) $(OBJDIR)cp-pin.exe

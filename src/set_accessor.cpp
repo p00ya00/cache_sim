@@ -1,4 +1,7 @@
 #include "set_accessor.hpp"
+#include "cache_defs.hpp"
+#include <iostream>
+using namespace std;
 
 SetAccessor::SetAccessor(CacheConfig config)
 : cacheTable(nullptr), cacheConfig(config)
@@ -32,14 +35,14 @@ CacheLine *SetAccessor::read(Address adr)
 
 	// index cache table with the set tag
 	CacheLineSet *cls = &cacheTable[ltag];
-	for(CacheLineList *set = cls->set; set->next != nullptr; set = set->next)
+	for(CacheLineList *entry = cls->set; entry != nullptr; entry = entry->next)
 	{
-		if(set->cacheline->tag == dtag)
+		if(entry->cacheline->tag == dtag)
 		{
 			// move this cacheline to the end of the list
-			DL_DELETE(cls->set, set);
-			DL_APPEND(cls->set, set);
-			return set->cacheline;
+			DL_DELETE(cls->set, entry);
+			DL_APPEND(cls->set, entry);
+			return entry->cacheline;
 		}
 	}
 
@@ -55,7 +58,7 @@ CacheLine *SetAccessor::write(Address adr)
 	CacheLineSet *cls = &cacheTable[ltag];
 	// go through the set to find adr
 	CacheLineList *entry = nullptr;
-	for(entry = cls->set; entry->next != nullptr; entry = entry->next)
+	for(entry = cls->set; entry != nullptr; entry = entry->next)
 	{
 		if(entry->cacheline->tag == dtag)
 		{

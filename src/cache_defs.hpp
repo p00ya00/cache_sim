@@ -101,7 +101,7 @@ struct CacheLineSet
 	: set(nullptr), size(0)
 	{}
 	CacheLineList *set;
-	size_t size;
+	short size;
 };
 
 typedef CacheLineSet *CacheTable;

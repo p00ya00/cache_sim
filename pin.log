@@ -1,2 +1,2 @@
 Pin 2.12 kit 53241
-E: Unexpected memory deallocation request of aligned memory 0x7f95cba41fc0
+E: Unable to load /home/p00ya/workspace/cache_sim/obj-intel64/memtrace.so: /home/p00ya/workspace/cache_sim/obj-intel64/memtrace.so: undefined symbol: _ZN11SetAccessor5writeEy
