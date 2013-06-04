@@ -49,8 +49,6 @@ struct CacheLine
 	Flags flags;
 };
 
-typedef boost::unordered_map<Tag, CacheLine *> CacheTable;
-
 enum WritePolicy
 {
 	WRITE_THROUGH, WRITE_BACK
@@ -90,6 +88,21 @@ typedef struct CacheAccess_
 	struct CacheAccess_ *prev;
 	struct CacheAccess_ *next;
 } CacheAccess;
+
+typedef struct CacheLineList_
+{
+	CacheLine *cacheline;
+	struct CacheLineSet_ *prev;
+	struct CacheLineSet_ *next;
+} CacheLineList;
+
+typedef struct CacheLineSet_
+{
+	CacheLineList set;
+	size_t size;
+} CacheLineSet;
+
+typedef CacheLineSet *CacheTable;
 
 struct AccessList
 {
