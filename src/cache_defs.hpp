@@ -92,15 +92,18 @@ typedef struct CacheAccess_
 typedef struct CacheLineList_
 {
 	CacheLine *cacheline;
-	struct CacheLineSet_ *prev;
-	struct CacheLineSet_ *next;
+	struct CacheLineList_ *prev;
+	struct CacheLineList_ *next;
 } CacheLineList;
 
-typedef struct CacheLineSet_
+struct CacheLineSet
 {
-	CacheLineList set;
+	CacheLineSet()
+	: set(nullptr), size(0)
+	{}
+	CacheLineList *set;
 	size_t size;
-} CacheLineSet;
+};
 
 typedef CacheLineSet *CacheTable;
 
