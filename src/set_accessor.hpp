@@ -72,7 +72,10 @@ public:
 				return NULL;
 			}
 			else //cache full but set not present, should not happen!
+			{
+				cout << "Invalid tag received for write!\n";
 				throw InvalidTagException("Invalid tag received for write!");
+			}
 		}
 		else //if in cache
 		{

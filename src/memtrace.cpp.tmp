@@ -1,0 +1,320 @@
+#define __STDC_FORMAT_MACROS
+#include <stdlib.h>
+#include <iomanip>
+#include <inttypes.h>
+#include <stdio.h>
+#include <cstring>
+#include "pin.H"
+#include "L1DCache.hpp"
+#include "L1ICache.hpp"
+#include "L2Cache.hpp"
+#include "miss_handler.hpp"
+#include "main_mem_mock.hpp"
+#include "instr_cost.hpp"
+
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <string>
+using namespace std;
+
+#include <boost/lexical_cast.hpp>
+using namespace boost;
+
+PIN_MUTEX logMutex;
+void log(string str)
+{
+    PIN_MutexLock(&logMutex);
+    cout << str;
+    PIN_MutexUnlock(&logMutex);
+}
+
+//memory trace dump
+//ofstream memTraceDump;
+
+//instruction cost table
+InstrCostTable costTable("instr_cost");
+
+//main memory mock
+MainMemMock mm;
+
+//object receiving list of memory misses and computation cycles in between them
+MissHandler mh;
+
+// CacheConfig l2Config(256 * 1024, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
+// typedef L2Cache<MainMemMock> L2CacheType;
+// L2CacheType l2Cache(l2Config, &mm);
+
+// CacheConfig l1dConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
+// typedef L1DCache<L2CacheType> L1DCacheType;
+// L1DCacheType l1dCache(l1dConfig, &l2Cache);
+
+// CacheConfig l1iConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
+// typedef L1ICache<L2CacheType, L1DCacheType> L1ICacheType;
+// L1ICacheType l1iCache(l1iConfig, &l2Cache, &l1dCache);
+
+size_t cycles = 0;
+PIN_MUTEX mutex;
+
+//hashmap of number of loads per function
+// typedef boost::unordered_map<string, unsigned long long> PerfCounterMap;
+// PerfCounterMap loadsPerFunc;
+
+//data structures required for holding l1,l2 caches per thread
+struct CachesPerThread
+{
+    CachesPerThread()
+    : l2Config(256 * 1024, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8)
+    , l2Cache(l2Config, &mm)
+    , l1dConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8)
+    , l1dCache(l1dConfig, &l2Cache)
+    , l1iConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8)
+    , l1iCache(l1iConfig, &l2Cache, &l1dCache)
+    {}
+
+    CacheConfig l2Config;
+    typedef L2Cache<MainMemMock> L2CacheType;
+    L2CacheType l2Cache;
+
+    CacheConfig l1dConfig;
+    typedef L1DCache<L2CacheType> L1DCacheType;
+    L1DCacheType l1dCache;
+
+    CacheConfig l1iConfig;
+    typedef L1ICache<L2CacheType, L1DCacheType> L1ICacheType;
+    L1ICacheType l1iCache;
+};
+
+typedef boost::unordered_map<int, CachesPerThread> ThreadCacheMap;
+ThreadCacheMap threadCaches;
+
+/**
+ * is called for each load/store operation requested by the cpu.
+ * @param ip instruction pointer
+ * @param addr memory address referenced
+ * @param size size of load/store request in bytes
+ * @param tid thread id in which memory reference occured
+ * @param img_name image name in which memory reference occured
+ * @param rtn_name function(routine) name in which memory reference occured
+ * @param write whether this reference is a load or a store
+ * @param timestamp in nanoseconds
+ */
+void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
+                  void *img_name, void *rtn_name, bool write, UINT64 timestamp)
+{
+	CacheOperationResult res;
+    // CachesPerThread *caches = nullptr;
+    auto cachesItr = threadCaches.find(tid);
+
+    if(cachesItr == threadCaches.end())
+    {
+        log("INFO: Creating caches from recordMemRef() for tid " + lexical_cast<string>(tid) + "\n");
+        PIN_MutexLock(&mutex);
+        // log("DEBUG: allocating cache for thread " + lexical_cast<string>(tid) + "\n");
+        CachesPerThread caches;
+        log("DEBUG: allocated cache for thread " + lexical_cast<string>(tid) + "\n");
+        threadCaches[tid] = caches;
+        PIN_MutexUnlock(&mutex);
+    }
+    // else
+    // {
+        log("INFO: Getting caches from recordMemRef() for tid " + lexical_cast<string>(tid) + "\n");
+        cachesItr = threadCaches.find(tid);
+        if(cachesItr == threadCaches.end())
+            log("INFO: cachesItr is null after inserting new entry!!!\n");
+    // }
+
+   // memTraceDump << dec << tid << "  " << hex << addr << "  " << dec << size << "B  "
+   //             << (write ? "W  " : "R  ") << (char *)img_name << "::" << (char *)rtn_name 
+   //              << endl;
+
+	if(write)
+    {
+        log("INFO: Sending store request to l1d cache\n");
+		res = cachesItr->second.l1dCache.store((Address)addr);
+    }
+	else
+    {
+        // string funcKey = string((char *)img_name) + string("::") + string((char *)rtn_name);
+        // auto itr = loadsPerFunc.find(funcKey);
+        // if(itr == loadsPerFunc.end())
+        //     loadsPerFunc[funcKey] = 1;
+        // else
+        //     itr->second++;
+        ///////////////////////////////////////////
+        log("INFO: Sending load request to l1d cache\n");
+		res = cachesItr->second.l1dCache.load((Address)addr);
+    }
+
+	// call prefetcher only when it's a load
+	// if(!write)
+	// 	caches->l1iCache.runPrefetcher(ip, (Address)addr);
+
+    //add cache his/miss cost to the computation cycles so far
+	cycles += costTable.lookup(res);
+
+    //check if memory reference cannot be satisfied in cache
+	if(res == MISS || res == PREFETCH_MISS)
+	{
+		// if (res == PREFETCH_MISS) cout << "---> PREFETCH_MISS <---\n";
+        //send computation cycles since last cache miss
+        log("INFO: sending computation\n");
+		mh.sendComp(cycles);
+		cycles = 0;
+        //send the detail of the memory reference that didn't hit the cache
+        log("INFO: sending missed R/W\n");   
+		mh.sendRW((Address)addr, size, tid, (char *)rtn_name, timestamp, write, (res == PREFETCH_MISS) ? true : false);
+	}
+    // PIN_MutexUnlock(&mutex);
+}
+
+void recordInstruction(void *ip, OS_THREAD_ID tid)
+{
+	// PIN_MutexLock(&mutex);
+	// l1iCache.load((Address)ip);
+	// PIN_MutexUnlock(&mutex);
+    CachesPerThread *caches = nullptr;
+    auto cachesItr = threadCaches.find(tid);
+    if(cachesItr == threadCaches.end())
+    {
+        log("INFO: Creating caches from recordInstruction() for tid " + lexical_cast<string>(tid) + "\n");
+        PIN_MutexLock(&mutex);
+        // log("DEBUG: allocating cache for thread " + lexical_cast<string>(tid) + "\n");
+        CachesPerThread caches;
+        log("DEBUG: allocated cache for thread " + lexical_cast<string>(tid) + "\n");
+        threadCaches[tid] = caches;
+        PIN_MutexUnlock(&mutex);
+    }
+    // else
+    // {
+        log("INFO: Getting caches from recordInstruction() for tid " + lexical_cast<string>(tid) + "\n");
+        cachesItr = threadCaches.find(tid);
+        if(cachesItr == threadCaches.end())
+            log("INFO: cachesItr is null after inserting new entry!!!\n");
+    // }
+
+    log("INFO: Sending load request to l1i cache\n");
+    cachesItr->second.l1iCache.load((Address)ip);
+}
+
+// Is called for every instruction and instruments reads and writes
+VOID Instruction(INS ins, VOID *v)
+{
+    RTN rtn;
+    SEC sec;
+    IMG img;
+    const char *img_name = "N/A";
+    const char *rtn_name = "N/A";
+    UINT32 memOperands = INS_MemoryOperandCount(ins);
+    OS_THREAD_ID tid = PIN_GetTid();
+    
+    // Instruments memory accesses using a predicated call, i.e.
+    // the instrumentation is called iff the instruction will actually be executed.
+    //
+    // The IA-64 architecture has explicitly predicated instructions. 
+    // On the IA-32 and Intel(R) 64 architectures conditional moves and REP 
+    // prefixed instructions appear as predicated instructions in Pin.
+
+    //obtain image and routine name
+    rtn = INS_Rtn(ins);
+    if(RTN_Valid(rtn))
+    {
+        rtn_name = RTN_Name(rtn).c_str();
+        sec = RTN_Sec(rtn);
+        if(SEC_Valid(sec))
+        {
+            img = SEC_Img(sec);
+            if(IMG_Valid(img))
+                img_name = IMG_Name(img).c_str();
+        }
+    }
+    
+    //add instruction cost to total computation cost
+    cycles += costTable.lookup(ins);
+
+    log("INFO: insert instrumentaion for instruction\n");
+    INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)recordInstruction,
+    		IARG_INST_PTR, IARG_UINT32, tid, IARG_END);
+
+    // Iterate over each memory operand of the instruction.
+    for (UINT32 memOp = 0; memOp < memOperands; memOp++)
+    {
+        if (INS_MemoryOperandIsRead(ins, memOp))
+        {
+            log("INFO: insert instrumentaion for load mem ref\n");
+            INS_InsertPredicatedCall(
+                ins, IPOINT_BEFORE, (AFUNPTR)recordMemRef,
+                IARG_INST_PTR,
+                IARG_MEMORYOP_EA, memOp, IARG_MEMORYREAD_SIZE,
+                IARG_UINT32, tid, IARG_PTR, img_name, IARG_PTR, rtn_name,
+                IARG_BOOL, false, IARG_TSC, IARG_END);
+        }
+
+        // Note that in some architectures a single memory operand can be 
+        // both read and written (for instance incl (%eax) on IA-32)
+        // In that case we instrument it once for read and once for write.
+        if (INS_MemoryOperandIsWritten(ins, memOp))
+        {
+            log("INFO: insert instrumentation for store mem ref\n");
+            INS_InsertPredicatedCall(
+                ins, IPOINT_BEFORE, (AFUNPTR)recordMemRef,
+                IARG_INST_PTR,
+                IARG_MEMORYOP_EA, memOp, IARG_MEMORYWRITE_SIZE,
+                IARG_UINT32, tid, IARG_PTR, img_name, IARG_PTR, rtn_name,
+                IARG_BOOL, true, IARG_TSC, IARG_END);
+        }
+    }
+}
+
+VOID Fini(INT32 code, void *v)
+{
+    // memTraceDump.close();
+    // print counters
+    for(auto itr = threadCaches.begin(); itr != threadCaches.end(); ++itr)
+    {
+        cerr << "\n******************** " << dec << itr->first << " ********************\n";
+    	cerr << "****************************** L1D ******************************\n";
+        itr->second.l1dCache.printCounters();
+        cerr << "\n****************************** L1I ******************************\n";
+        itr->second.l1iCache.printCounters();
+        cerr << "\n****************************** L2 ******************************\n";
+        itr->second.l2Cache.printCounters();
+        cerr << "******************************************************************\n";
+    }
+    cerr << "\n****************************** MM ******************************\n";
+    mm.printStats();
+    cerr << "******************************************************************\n";
+    
+    // print memory accesses per function
+    // ofstream topRefs("top_refs");
+    // for(auto itr = loadsPerFunc.begin(); itr != loadsPerFunc.end(); ++itr)
+    //     if(itr->second / (double)(l1dCache.getLoadAccess()) >= 0.0001)
+    //         cerr << itr->second * 100 / (double)(l1dCache.getLoadAccess()) << " \% \t" 
+    //              << itr->second << "\t\t\t" << itr->first << endl;
+    // topRefs.close();
+    
+    //free map
+    // for(auto itr = threadCaches.begin(); itr != threadCaches.end(); ++itr)
+    //     delete itr->second;
+}
+
+   
+INT32 Usage()
+{
+    PIN_ERROR("This Pintool prints a trace of memory addresses\n" + KNOB_BASE::StringKnobSummary() + "\n");
+    return -1;
+}
+
+int main(int argc, char *argv[])
+{
+	if (PIN_Init(argc, argv)) 
+        return Usage();
+    // memTraceDump.open("mem_trace_dump");
+	INS_AddInstrumentFunction(Instruction, 0);
+    PIN_AddFiniFunction(Fini, 0);
+    PIN_InitSymbols();
+    // Never returns
+    PIN_StartProgram();
+    
+    return 0;
+}

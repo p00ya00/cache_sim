@@ -33,7 +33,7 @@ public:
 		HashMap::iterator itr = hmap.find(t);
 		if(itr == hmap.end() || listSize(itr->second) < setSize)
 		{
-//			cout << "Received bad evacuation request.\n";
+			cout << "Bad evacuation request! Cache not full yet!!\n";
 			throw InvalidEvacuationReqException("Bad evacuation request! Cache not full yet!!");
 		}
 		return itr->second->tag;
@@ -53,7 +53,10 @@ public:
 				hmap[locTag] = list;
 			}
 			else //if table is full, throw
+			{
+				cout << "Invalid address received in LRU (set-associate)!\n";
 				throw InvalidTagException("Invalid address received in LRU (set-associate)!");
+			}
 		}
 		else //row exits in table
 		{

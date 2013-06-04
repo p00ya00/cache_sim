@@ -18,12 +18,8 @@
 #include <string>
 using namespace std;
 
-/* TODO:
- * - check if instruction is from instrumentation code
- */
-
 //memory trace dump
-ofstream memTraceDump;
+//ofstream memTraceDump;
 
 //instruction cost table
 InstrCostTable costTable("instr_cost");
@@ -34,24 +30,46 @@ MainMemMock mm;
 //object receiving list of memory misses and computation cycles in between them
 MissHandler mh;
 
-CacheConfig l2Config(256 * 1024, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
+// __thread CacheConfig l2Config(256 * 1024, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
+// typedef L2Cache<MainMemMock> L2CacheType;
+// __thread L2CacheType l2Cache(l2Config, &mm);
+
+// __thread CacheConfig l1dConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
+// typedef L1DCache<L2CacheType> L1DCacheType;
+// __thread L1DCacheType l1dCache(l1dConfig, &l2Cache);
+
+// __thread CacheConfig l1iConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
+// typedef L1ICache<L2CacheType, L1DCacheType> L1ICacheType;
+// __thread L1ICacheType l1iCache(l1iConfig, &l2Cache, &l1dCache);
+
+__thread CacheConfig *l2Config;
 typedef L2Cache<MainMemMock> L2CacheType;
-L2CacheType l2Cache(l2Config, &mm);
+__thread L2CacheType *l2Cache;
 
-CacheConfig l1dConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
+__thread CacheConfig *l1dConfig;
 typedef L1DCache<L2CacheType> L1DCacheType;
-L1DCacheType l1dCache(l1dConfig, &l2Cache);
+__thread L1DCacheType *l1dCache;
 
-CacheConfig l1iConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
+__thread CacheConfig *l1iConfig;
 typedef L1ICache<L2CacheType, L1DCacheType> L1ICacheType;
-L1ICacheType l1iCache(l1iConfig, &l2Cache, &l1dCache);
+__thread L1ICacheType *l1iCache;
+
+void initializeThreadLocals()
+{
+    l2Config = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
+    l2Cache = new L2CacheType(*l2Config, &mm);
+    l1dConfig = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
+    l1dCache = new L1DCacheType(*l1dConfig, l2Cache);
+    l1iConfig = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
+    l1iCache = new L1ICacheType(*l1iConfig, l2Cache, l1dCache);
+}
 
 size_t cycles = 0;
 PIN_MUTEX mutex;
 
 //hashmap of number of loads per function
-typedef boost::unordered_map<string, unsigned long long> PerfCounterMap;
-PerfCounterMap loadsPerFunc;
+// typedef boost::unordered_map<string, unsigned long long> PerfCounterMap;
+// PerfCounterMap loadsPerFunc;
 
 /**
  * is called for each load/store operation requested by the cpu.
@@ -68,7 +86,7 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
                   void *img_name, void *rtn_name, bool write, UINT64 timestamp)
 {
 	CacheOperationResult res;
-	PIN_MutexLock(&mutex);
+	// PIN_MutexLock(&mutex);
 
 //    memTraceDump << dec << tid << "  " << hex << addr << "  " << dec << size << "B  "
 //                << (write ? "W  " : "R  ") << (char *)img_name << "::" << (char *)rtn_name 
@@ -76,17 +94,17 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 
 	// cout << "send io to l1d\n";
 	if(write)
-		res = l1dCache.store((Address)addr);
+		res = l1dCache->store((Address)addr);
 	else
     {
-        string funcKey = string((char *)img_name) + string("::") + string((char *)rtn_name);
-        auto itr = loadsPerFunc.find(funcKey);
-        if(itr == loadsPerFunc.end())
-            loadsPerFunc[funcKey] = 1;
-        else
-            itr->second++;
+        // string funcKey = string((char *)img_name) + string("::") + string((char *)rtn_name);
+        // auto itr = loadsPerFunc.find(funcKey);
+        // if(itr == loadsPerFunc.end())
+        //     loadsPerFunc[funcKey] = 1;
+        // else
+        //     itr->second++;
         ///////////////////////////////////////////
-		res = l1dCache.load((Address)addr);
+		res = l1dCache->load((Address)addr);
     }
 
 	// cout << "run l1i prefetcher\n";
@@ -101,7 +119,7 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
     //check if memory reference cannot be satisfied in cache
 	if(res == MISS || res == PREFETCH_MISS)
 	{
-		if (res == PREFETCH_MISS) cout << "---> PREFETCH_MISS <---\n";
+		// if (res == PREFETCH_MISS) cout << "---> PREFETCH_MISS <---\n";
         //send computation cycles since last cache miss
 		mh.sendComp(cycles);
 		cycles = 0;
@@ -109,15 +127,15 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 		mh.sendRW((Address)addr, size, tid, (char *)rtn_name, timestamp, write,
 				(res == PREFETCH_MISS) ? true : false);
 	}
-    PIN_MutexUnlock(&mutex);
+    // PIN_MutexUnlock(&mutex);
 }
 
-void recordInstruction(void *ip, UINT64 timestamp)
+void recordInstruction(void *ip)
 {
-	PIN_MutexLock(&mutex);
+	// PIN_MutexLock(&mutex);
 //	cout << "send inst to l1i\n";
-	l1iCache.load((Address)ip);
-	PIN_MutexUnlock(&mutex);
+	l1iCache->load((Address)ip);
+	// PIN_MutexUnlock(&mutex);
 }
 
 // Is called for every instruction and instruments reads and writes
@@ -188,25 +206,25 @@ VOID Instruction(INS ins, VOID *v)
 
 VOID Fini(INT32 code, void *v)
 {
-    memTraceDump.close();
+    // memTraceDump.close();
     // print counters
 	cerr << "\n****************************** L1D ******************************\n";
-    l1dCache.printCounters();
+    l1dCache->printCounters();
     cerr << "\n****************************** L1I ******************************\n";
-    l1iCache.printCounters();
+    l1iCache->printCounters();
     cerr << "\n****************************** L2 ******************************\n";
-    l2Cache.printCounters();
+    l2Cache->printCounters();
     cerr << "******************************************************************\n";
     cerr << "\n****************************** MM ******************************\n";
 	mm.printStats();
 	cerr << "******************************************************************\n";
     ////////////////////////////////////////////////////////////////////////////////
-    ofstream topRefs("top_refs");
-    for(auto itr = loadsPerFunc.begin(); itr != loadsPerFunc.end(); ++itr)
-        if(itr->second / (double)(l1dCache.getLoadAccess()) >= 0.0001)
-            cerr << itr->second * 100 / (double)(l1dCache.getLoadAccess()) << " \% \t" 
-                 << itr->second << "\t\t\t" << itr->first << endl;
-    topRefs.close();
+    // ofstream topRefs("top_refs");
+    // for(auto itr = loadsPerFunc.begin(); itr != loadsPerFunc.end(); ++itr)
+    //     if(itr->second / (double)(l1dCache.getLoadAccess()) >= 0.0001)
+    //         cerr << itr->second * 100 / (double)(l1dCache.getLoadAccess()) << " \% \t" 
+    //              << itr->second << "\t\t\t" << itr->first << endl;
+    // topRefs.close();
 }
 
    
@@ -221,7 +239,8 @@ int main(int argc, char *argv[])
 {
 	if (PIN_Init(argc, argv)) 
         return Usage();
-    memTraceDump.open("mem_trace_dump");
+    // memTraceDump.open("mem_trace_dump");
+    initializeThreadLocals();
 	INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);
     PIN_InitSymbols();
