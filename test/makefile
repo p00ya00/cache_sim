@@ -24,6 +24,9 @@ cache_test: mkdir $(SRC_DIR)/cache.hpp $(SRC_DIR)/main_mem_mock.hpp
 prefetcher_test: mkdir $(SRC_DIR)/stream_prefetcher.hpp $(SRC_DIR)/stride_prefetcher.hpp
 	$(CC) $(CFLAGS) $(INCL) $(SRC_DIR)/stream_prefetcher.cpp $(SRC_DIR)/stride_prefetcher.cpp prefetcher_test.cpp $(LIBS) -o $(OUT_DIR)/$@
 
+lru_set_accessor_test: mkdir $(SRC_DIR)/set_accessor.hpp
+	$(CC) $(CFLAGS) $(INCL) $(SRC_DIR)/set_accessor.cpp lru_set_accessor_test.cpp $(LIBS) -o $(OUT_DIR)/$@
+
 all: replacement_test set_assoc_test prefetcher_test
 
 run_all: all

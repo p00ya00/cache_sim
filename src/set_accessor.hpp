@@ -30,6 +30,8 @@ private:
 	CacheConfig cacheConfig;
 	Tag locTagMask;
 	Tag dataTagMask;
+	int locTagSize;
+	int offsetTagSize;
 };
 
 #endif /* SET_ACCESSOR_HPP_ */

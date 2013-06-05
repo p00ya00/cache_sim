@@ -30,18 +30,6 @@ MainMemMock mm;
 //object receiving list of memory misses and computation cycles in between them
 MissHandler mh;
 
-// __thread CacheConfig l2Config(256 * 1024, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
-// typedef L2Cache<MainMemMock> L2CacheType;
-// __thread L2CacheType l2Cache(l2Config, &mm);
-
-// __thread CacheConfig l1dConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
-// typedef L1DCache<L2CacheType> L1DCacheType;
-// __thread L1DCacheType l1dCache(l1dConfig, &l2Cache);
-
-// __thread CacheConfig l1iConfig(32 * 1024, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
-// typedef L1ICache<L2CacheType, L1DCacheType> L1ICacheType;
-// __thread L1ICacheType l1iCache(l1iConfig, &l2Cache, &l1dCache);
-
 __thread CacheConfig *l2Config;
 typedef L2Cache<MainMemMock> L2CacheType;
 __thread L2CacheType *l2Cache;
@@ -62,6 +50,7 @@ void initializeThreadLocals()
     l1dCache = new L1DCacheType(*l1dConfig, l2Cache);
     l1iConfig = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
     l1iCache = new L1ICacheType(*l1iConfig, l2Cache, l1dCache);
+    cout << "Initialized successfully.\n";
 }
 
 size_t cycles = 0;
@@ -86,15 +75,17 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
                   void *img_name, void *rtn_name, bool write, UINT64 timestamp)
 {
 	CacheOperationResult res;
-	// PIN_MutexLock(&mutex);
 
 //    memTraceDump << dec << tid << "  " << hex << addr << "  " << dec << size << "B  "
 //                << (write ? "W  " : "R  ") << (char *)img_name << "::" << (char *)rtn_name 
 //                 << endl;
 
-	// cout << "send io to l1d\n";
 	if(write)
+	{
+		cout << "sending store to l1d.\n";
 		res = l1dCache->store((Address)addr);
+		cout << "l1d store returned.\n";
+	}
 	else
     {
         // string funcKey = string((char *)img_name) + string("::") + string((char *)rtn_name);
@@ -104,7 +95,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
         // else
         //     itr->second++;
         ///////////////////////////////////////////
+		cout << "sending load to l1d.\n";
 		res = l1dCache->load((Address)addr);
+		cout << "l1d load returned.\n";
     }
 
 	// cout << "run l1i prefetcher\n";
@@ -133,8 +126,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 void recordInstruction(void *ip)
 {
 	// PIN_MutexLock(&mutex);
-//	cout << "send inst to l1i\n";
+	cout << "sending load to l1i.\n";
 	l1iCache->load((Address)ip);
+	cout << "l1i load returned.\n";
 	// PIN_MutexUnlock(&mutex);
 }
 
@@ -147,7 +141,7 @@ VOID Instruction(INS ins, VOID *v)
     const char *img_name = "N/A";
     const char *rtn_name = "N/A";
     UINT32 memOperands = INS_MemoryOperandCount(ins);
-    OS_THREAD_ID tid = 900;//PIN_GetTid();
+    OS_THREAD_ID tid = PIN_GetTid();
     
     // Instruments memory accesses using a predicated call, i.e.
     // the instrumentation is called iff the instruction will actually be executed.

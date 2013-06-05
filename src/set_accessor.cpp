@@ -6,8 +6,8 @@ using namespace std;
 SetAccessor::SetAccessor(CacheConfig config)
 : cacheTable(nullptr), cacheConfig(config)
 {
-	int locTagSize  = ceil(LOG2(config.numberOfSets));
-	int offsetTagSize = LOG2(config.cacheLineSize);
+	locTagSize  = ceil(LOG2(config.numberOfSets));
+	offsetTagSize = LOG2(config.cacheLineSize);
 	dataTagMask = (~0) << (offsetTagSize);
 	locTagMask = pow(2, locTagSize) - 1;
 	locTagMask <<= offsetTagSize;
@@ -20,7 +20,7 @@ void SetAccessor::setCacheTable(CacheTable ct)
 
 Tag SetAccessor::locTag(Address adr)
 {
-	return adr & locTagMask;
+	return (adr & locTagMask) >> offsetTagSize;
 }
 
 Tag SetAccessor::dataTag(Address adr)
@@ -34,12 +34,15 @@ CacheLine *SetAccessor::read(Address adr)
 	Tag dtag = dataTag(adr);
 
 	// index cache table with the set tag
+//	cout << "indexing array.\n";
 	CacheLineSet *cls = &cacheTable[ltag];
+//	cout << "indexed array.";
 	for(CacheLineList *entry = cls->set; entry != nullptr; entry = entry->next)
 	{
 		if(entry->cacheline->tag == dtag)
 		{
 			// move this cacheline to the end of the list
+			//optimization: compare to head
 			DL_DELETE(cls->set, entry);
 			DL_APPEND(cls->set, entry);
 			return entry->cacheline;
