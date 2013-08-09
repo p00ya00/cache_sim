@@ -136,8 +136,67 @@ BOOST_FIXTURE_TEST_CASE(multipleWriteAndRead, EmptyCacheFixture)
 	BOOST_REQUIRE(lsa.read(adr2d_0xb8725345)->tag == lsa.dataTag(adr2d_0xb8725345));
 	BOOST_REQUIRE(lsa.read(adr3a_0xa8115385)->tag == lsa.dataTag(adr3a_0xa8115385));
 	BOOST_REQUIRE(lsa.read(adr1b_0x06737827) == nullptr);
+}
 
-	printCacheTable();
+BOOST_FIXTURE_TEST_CASE(overwriteCacheline, EmptyCacheFixture)
+{
+	CacheLine *cl = nullptr;
+
+	BOOST_REQUIRE(lsa.write(adr4a_0x938753c5) == nullptr);
+	BOOST_REQUIRE((cl = lsa.read(adr4a_0x938753c5)) != nullptr);
+	BOOST_REQUIRE(cl->tag == lsa.dataTag(adr4a_0x938753c5));
+	BOOST_REQUIRE((cl = lsa.write(adr4a_0x938753c5)) != nullptr);
+	BOOST_REQUIRE(cl->tag == lsa.dataTag(adr4a_0x938753c5));
+	BOOST_REQUIRE(IS_ENTRY_INVALID(cl));
+	BOOST_REQUIRE(!IS_EVACUATED(cl));
+	BOOST_REQUIRE(lsa.cacheTable[0].size == 0);
+	BOOST_REQUIRE(lsa.cacheTable[0].set == nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[1].size == 0);
+	BOOST_REQUIRE(lsa.cacheTable[1].set == nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[2].size == 0);
+	BOOST_REQUIRE(lsa.cacheTable[2].set == nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[3].size == 1);
+	BOOST_REQUIRE(lsa.cacheTable[3].set != nullptr);
+}
+
+BOOST_FIXTURE_TEST_CASE(readFromFullCache, FullCacheFixture)
+{
+	CacheLine *cl = nullptr;
+
+	BOOST_REQUIRE(lsa.cacheTable[0].size == 4);
+	BOOST_REQUIRE(lsa.cacheTable[0].set != nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[1].size == 4);
+	BOOST_REQUIRE(lsa.cacheTable[1].set != nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[2].size == 4);
+	BOOST_REQUIRE(lsa.cacheTable[2].set != nullptr);
+	BOOST_REQUIRE(lsa.cacheTable[3].size == 4);
+	BOOST_REQUIRE(lsa.cacheTable[3].set != nullptr);
+
+	BOOST_REQUIRE((cl = lsa.read(adr1a_0x06237817)) != nullptr);
+	BOOST_REQUIRE(cl->tag == lsa.dataTag(adr1a_0x06237817));
+	BOOST_REQUIRE(!IS_ENTRY_INVALID(cl));
+	BOOST_REQUIRE(!IS_EVACUATED(cl));
+}
+
+BOOST_FIXTURE_TEST_CASE(writeToFullCache, FullCacheFixture)
+{
+	CacheLine *cl = nullptr;
+
+	// in set 1, adr1a is LRU
+	BOOST_REQUIRE((cl = lsa.write(adr1e_0x87600000)) != nullptr);
+	BOOST_REQUIRE(cl->tag == lsa.dataTag(adr1a_0x06237817));
+	BOOST_REQUIRE(!IS_ENTRY_INVALID(cl));
+	BOOST_REQUIRE(IS_EVACUATED(cl));
+	BOOST_REQUIRE(lsa.cacheTable[0].size == 4);
+
+	// reading adr2a and adr2b so that adr2c is LRU
+	BOOST_REQUIRE(lsa.read(adr2a_0x98325345) != nullptr);
+	BOOST_REQUIRE(lsa.read(adr2b_0x98725355) != nullptr);
+	BOOST_REQUIRE((cl = lsa.write(adr2e_0x5642325f)) != nullptr);
+	BOOST_REQUIRE(cl->tag == lsa.dataTag(adr2c_0xa8725365));
+	BOOST_REQUIRE(!IS_ENTRY_INVALID(cl));
+	BOOST_REQUIRE(IS_EVACUATED(cl));
+	BOOST_REQUIRE(lsa.cacheTable[0].size == 4);
 }
 
 //int main()

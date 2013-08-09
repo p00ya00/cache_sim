@@ -44,11 +44,11 @@ __thread L1ICacheType *l1iCache;
 
 void initializeThreadLocals()
 {
-    l2Config = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
+    l2Config = new CacheConfig(128 * 8 * 64, LRU, SET_ASSOC, WRITE_BACK, 2, UNIFIED_CACHE, 64, 8);
     l2Cache = new L2CacheType(*l2Config, &mm);
-    l1dConfig = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
+    l1dConfig = new CacheConfig(128 * 8 * 64, LRU, SET_ASSOC, WRITE_BACK, 1, DATA_CACHE, 64, 8);
     l1dCache = new L1DCacheType(*l1dConfig, l2Cache);
-    l1iConfig = new CacheConfig(1 * 8, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
+    l1iConfig = new CacheConfig(256 * 8 * 64, LRU, SET_ASSOC, WRITE_BACK, 1, INSTRUCTION_CACHE, 64, 8);
     l1iCache = new L1ICacheType(*l1iConfig, l2Cache, l1dCache);
     cout << "Initialized successfully.\n";
 }
@@ -82,9 +82,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 
 	if(write)
 	{
-		cout << "sending store to l1d.\n";
+//		cout << "sending store to l1d.\n";
 		res = l1dCache->store((Address)addr);
-		cout << "l1d store returned.\n";
+//		cout << "l1d store returned.\n";
 	}
 	else
     {
@@ -95,9 +95,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
         // else
         //     itr->second++;
         ///////////////////////////////////////////
-		cout << "sending load to l1d.\n";
+//		cout << "sending load to l1d.\n";
 		res = l1dCache->load((Address)addr);
-		cout << "l1d load returned.\n";
+//		cout << "l1d load returned.\n";
     }
 
 	// cout << "run l1i prefetcher\n";
@@ -126,9 +126,9 @@ void recordMemRef(void * ip, void * addr, UINT32 size, OS_THREAD_ID tid,
 void recordInstruction(void *ip)
 {
 	// PIN_MutexLock(&mutex);
-	cout << "sending load to l1i.\n";
+//	cout << "sending load to l1i.\n";
 	l1iCache->load((Address)ip);
-	cout << "l1i load returned.\n";
+//	cout << "l1i load returned.\n";
 	// PIN_MutexUnlock(&mutex);
 }
 

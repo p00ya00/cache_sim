@@ -6,6 +6,8 @@ OUT_DIR = bin
 LIBS_DIR = -L/usr/lib
 LIBS = -lboost_unit_test_framework
 
+all: lru_set_accessor_test
+
 mkdir:
 	mkdir -p $(OUT_DIR)
 
@@ -27,13 +29,8 @@ prefetcher_test: mkdir $(SRC_DIR)/stream_prefetcher.hpp $(SRC_DIR)/stride_prefet
 lru_set_accessor_test: mkdir $(SRC_DIR)/set_accessor.hpp
 	$(CC) $(CFLAGS) $(INCL) $(SRC_DIR)/set_accessor.cpp lru_set_accessor_test.cpp $(LIBS) -o $(OUT_DIR)/$@
 
-all: replacement_test set_assoc_test prefetcher_test
-
 run_all: all
-	$(OUT_DIR)/replacement_test
-	$(OUT_DIR)/full_assoc_test
-	$(OUT_DIR)/set_assoc_test
-	$(OUT_DIR)/cache_test
+	$(OUT_DIR)/lru_set_accessor_test
 
 clean:
 	rm -rf *.o 

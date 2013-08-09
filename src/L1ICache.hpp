@@ -21,9 +21,9 @@ public:
 
 	CacheOperationResult load(Address adr)
 	{
-		cout << "reading from accessor.\n";
+//		cout << "reading from accessor.\n";
 		CacheLine *cl = accessor.read(adr);
-		cout << "read from accessor.\n";
+//		cout << "read from accessor.\n";
 		CacheLine *modifiedOrEvacuated = nullptr;
 		CacheOperationResult res;
 

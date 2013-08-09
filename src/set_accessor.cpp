@@ -1,6 +1,7 @@
 #include "set_accessor.hpp"
 #include "cache_defs.hpp"
 #include <iostream>
+#include <iomanip>
 using namespace std;
 
 SetAccessor::SetAccessor(CacheConfig config)
@@ -34,15 +35,15 @@ CacheLine *SetAccessor::read(Address adr)
 	Tag dtag = dataTag(adr);
 
 	// index cache table with the set tag
-//	cout << "indexing array.\n";
-	CacheLineSet *cls = &cacheTable[ltag];
+//	cout << "indexing array with 0x" << hex << ltag << dec << ".\n";
+	CacheLineSet *cls = &(cacheTable[ltag]);
 //	cout << "indexed array.";
 	for(CacheLineList *entry = cls->set; entry != nullptr; entry = entry->next)
 	{
 		if(entry->cacheline->tag == dtag)
 		{
 			// move this cacheline to the end of the list
-			//optimization: compare to head
+			//optimization: compare to head, if not the same then move it
 			DL_DELETE(cls->set, entry);
 			DL_APPEND(cls->set, entry);
 			return entry->cacheline;
@@ -76,7 +77,7 @@ CacheLine *SetAccessor::write(Address adr)
 	// if set is full delete least recently used
 	if(cls->size >= cacheConfig.setSize)
 	{
-		CacheLineList *toDelete = cls->set->prev;
+		CacheLineList *toDelete = cls->set;
 		replacedCacheline = toDelete->cacheline;
 		SET_EVACUATED(replacedCacheline);
 		DL_DELETE(cls->set, toDelete);
